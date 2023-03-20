@@ -66,16 +66,14 @@ respectivamente: topo, esquerda, baixo e direita.'''
     # TODO: escreva esta função.
     # Use a abordagem com flood fill recursivo.
 # ===============================================================================
-    altura = len(img[0])
-    largura = len(img)
+    altura = len(img)
+    largura = len(img[0])
     rotulo = 0.1
     componentes = []
 
 # Separa o background dos pontos possiveis para ser arroz
-    img = np.where(img == BACKGROUND, BACKGROUND, ARROZ)
+    img = np.where(img == FOREGROUND, ARROZ, BACKGROUND)
 
-    print("largura ", largura)
-    print("altura", altura)
     for i in range(0, altura):
         for j in range(0, largura):
             if img[i][j][0] == ARROZ:
@@ -90,16 +88,17 @@ respectivamente: topo, esquerda, baixo e direita.'''
 
                 componente_encontrado = inunda(
                     img, altura, largura, i, j, componente)
-                if componente_encontrado['n_pixels'] > n_pixels_min:
+                
+                if componente_encontrado['n_pixels'] >= n_pixels_min:
                     componentes.append(componente_encontrado)
                     rotulo += 0.1
 
     return componentes
 
 
-def inunda(img, largura, altura, x, y, componente):
+def inunda(img, largura, altura, y, x, componente):
 
-    if img[x, y, 0] != ARROZ:
+    if img[y][x][0] != ARROZ:
         return componente
 
     img[y][x][0] = componente['label']
