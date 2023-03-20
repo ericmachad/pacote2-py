@@ -91,7 +91,7 @@ respectivamente: topo, esquerda, baixo e direita.'''
                 
                 if componente_encontrado['n_pixels'] >= n_pixels_min:
                     componentes.append(componente_encontrado)
-                    rotulo += 0.1
+            rotulo += 0.1
 
     return componentes
 
