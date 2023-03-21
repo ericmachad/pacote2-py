@@ -18,8 +18,8 @@ INPUT_IMAGE = 'arroz.bmp'
 # TODO: ajuste estes parâmetros!
 NEGATIVO = False
 THRESHOLD = 0.75
-ALTURA_MIN = 19
-LARGURA_MIN = 19
+ALTURA_MIN = 18
+LARGURA_MIN = 17
 N_PIXELS_MIN = 400
 
 # ===============================================================================
@@ -89,11 +89,26 @@ respectivamente: topo, esquerda, baixo e direita.'''
                 componente_encontrado = inunda(
                     img, altura, largura, i, j, componente)
                 
-                if componente_encontrado['n_pixels'] >= n_pixels_min:
+                if componente_encontrado['n_pixels'] >= n_pixels_min and verifica_pad_altura_largura(componente,altura_min,largura_min):
                     componentes.append(componente_encontrado)
             rotulo += 0.1
 
     return componentes
+
+def verifica_pad_altura_largura(componentes,altura_min,largura_min):
+    altura = 0
+    largura = 0
+    if(componentes['T']>componentes['B']):
+        altura = componentes['T']-componentes['B']
+    if(componentes['B']>componentes['T']):
+        altura = componentes['B']-componentes['T']
+    if(componentes['L']>componentes['R']):
+        largura = componentes['L']-componentes['R'] 
+    if(componentes['R']>componentes['L']):
+        largura = componentes['R']-componentes['L']
+
+    return altura>=altura_min and largura>=largura_min     
+
 
 
 def inunda(img, largura, altura, y, x, componente):
