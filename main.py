@@ -2,7 +2,9 @@
 # Exemplo: segmentação de uma imagem em escala de cinza.
 # -------------------------------------------------------------------------------
 # Autor: Bogdan T. Nassu
-# Alunos: Eric Machado e Gabriel Leão Bernarde
+# Alunos: 
+# Eric Machado - 2191083
+# Gabriel Leão Bernarde - 2194228
 # Universidade Tecnológica Federal do Paraná
 # ===============================================================================
 
@@ -89,18 +91,18 @@ respectivamente: topo, esquerda, baixo e direita.'''
                 componente_encontrado = inunda(
                     img, altura, largura, i, j, componente)
                 
-                if componente_encontrado['n_pixels'] >= n_pixels_min and verifica_pad_altura_largura(componente,altura_min,largura_min):
+                if componente_encontrado['n_pixels'] >= n_pixels_min and verifica_altura_largura(componente,altura_min,largura_min):
                     componentes.append(componente_encontrado)
             rotulo += 0.1
 
     return componentes
 
-def verifica_pad_altura_largura(componentes,altura_min,largura_min):
+def verifica_altura_largura(componentes, altura_min, largura_min):
     altura = 0
     largura = 0
 
     altura = componentes['T'] - componentes['B'] if componentes['T'] > componentes['B'] else componentes['B'] - componentes['T']
-    largura = componentes['L'] - componentes['R'] if componentes['L'] > componentes['R'] else componentes['R']-componentes['L']
+    largura = componentes['L'] - componentes['R'] if componentes['L'] > componentes['R'] else componentes['R'] - componentes['L']
 
     return altura >= altura_min and largura >= largura_min 
 
