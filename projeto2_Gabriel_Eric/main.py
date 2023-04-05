@@ -1,10 +1,16 @@
+# Projeto Filtro da média
+# Alunos: 
+# Eric Machado - 2191083
+# Gabriel Leão Bernarde - 2194228
+# Universidade Tecnológica Federal do Paraná
+# ===============================================================================
 import sys
 import timeit
 import numpy as np
 import cv2
 
-ALTURA_JANELA = 51
-LARGURA_JANELA = 21
+ALTURA_JANELA = 3
+LARGURA_JANELA = 13
 IMAGEM_ENTRADA = 'b'
 
 def imagem_integral(img):
@@ -104,7 +110,7 @@ def main():
     cv2.imshow('01 - Original', img)
     cv2.imwrite('01 - Original.bmp', img * 255)
     start_time = timeit.default_timer()
-    img = filtro_img_integral(img, ALTURA_JANELA, LARGURA_JANELA)
+    img = filtro_ingenuo(img, ALTURA_JANELA, LARGURA_JANELA)
     print('Tempo: %f' % (timeit.default_timer() - start_time))
 
     cv2.imshow('02 - out', img)
