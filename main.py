@@ -1,194 +1,172 @@
-# ===============================================================================
-# Exemplo: segmentação de uma imagem em escala de cinza.
-# -------------------------------------------------------------------------------
-# Autor: Bogdan T. Nassu
-# Alunos: 
-# Eric Machado - 2191083
-# Gabriel Leão Bernarde - 2194228
-# Universidade Tecnológica Federal do Paraná
-# ===============================================================================
-
 import sys
 import timeit
 import numpy as np
 import cv2
 
-# ===============================================================================
+ALTURA_JANELA = 3
+LARGURA_JANELA = 3
+IMAGEM_ENTRADA = 'b'
 
-INPUT_IMAGE = 'arroz.bmp'
+def imagem_integral(img):
+    altura, largura, _ = img.shape
+    
+    integral = img.copy()
 
-# TODO: ajuste estes parâmetros!
-NEGATIVO = False
-THRESHOLD = 0.75
-ALTURA_MIN = 17
-LARGURA_MIN = 17
-N_PIXELS_MIN = 400
+    for y in range(0, altura):
+        for x in range(1, largura):
+            integral[y][x] += integral[y][x - 1]
 
-# ===============================================================================
+    for y in range(1, altura):
+        for x in range(0, largura):
+            integral[y][x] += integral[y - 1][x]
 
-ARROZ = -1
-BACKGROUND = 0
-FOREGROUND = 1
-
-
-def binariza(img, threshold):
-    ''' Binarização simples por limiarização.
-
-Parâmetros: img: imagem de entrada. Se tiver mais que 1 canal, binariza cada
-              canal independentemente.
-            threshold: limiar.
-
-Valor de retorno: versão binarizada da img_in.'''
-
-    # TODO: escreva o código desta função.
-    # Dica/desafio: usando a função np.where, dá para fazer a binarização muito
-    # rapidamente, e com apenas uma linha de código!
-
-# -------------------------------------------------------------------------------
-    return np.where(img > threshold, FOREGROUND, BACKGROUND).astype(np.float32)
+    return integral
 
 
-def rotula(img, largura_min, altura_min, n_pixels_min):
-    '''Rotulagem usando flood fill. Marca os objetos da imagem com os valores
-[0.1,0.2,etc].
+def filtro_img_integral(img, altura_janela, largura_janela):
+    altura, largura, _ = img.shape
 
-Parâmetros: img: imagem de entrada E saída.
-            largura_min: descarta componentes com largura menor que esta.
-            altura_min: descarta componentes com altura menor que esta.
-            n_pixels_min: descarta componentes com menos pixels que isso.
+    img_out = img.copy()
+    integral = imagem_integral(img)
 
-Valor de retorno: uma lista, onde cada item é um vetor associativo (dictionary)
-com os seguintes campos:
+    for y in range(altura_janela // 2 , altura - altura_janela // 2):
+        for x in range(largura_janela // 2, largura - largura_janela // 2):
+            topo_esquerda = integral[y - altura_janela // 2 - 1][x - largura_janela // 2 - 1]
+            topo_direita = integral[y - altura_janela // 2 - 1][x + largura_janela // 2]
+            baixo_esquerda = integral[y + altura_janela // 2][x - largura_janela // 2 - 1]
+            baixo_direita = integral[y + altura_janela // 2][x + largura_janela // 2]
+                                
+            img_out[y][x] = (baixo_direita - topo_direita - baixo_esquerda + topo_esquerda) / (altura_janela * largura_janela)
+     
+    return img_out
 
-'label': rótulo do componente.
-'n_pixels': número de pixels do componente.
-'T', 'L', 'B', 'R': coordenadas do retângulo envolvente de um componente conexo,
-respectivamente: topo, esquerda, baixo e direita.'''
+def calcula_media(janela):
+    altura, largura = janela.shape
 
-    # TODO: escreva esta função.
-    # Use a abordagem com flood fill recursivo.
-# ===============================================================================
-    altura = len(img)
-    largura = len(img[0])
-    rotulo = 0.1
-    componentes = []
+    soma = 0
+    for y in range(0, altura):
+        for x in range(0, largura):
+            soma += janela[y][x]
 
-# Separa o background dos pontos possiveis para ser arroz
-    img = np.where(img == FOREGROUND, ARROZ, BACKGROUND)
+    return soma / (largura * altura)
 
-    for i in range(0, altura):
-        for j in range(0, largura):
-            if img[i][j][0] == ARROZ:
-                componente = dict(
-                    label=rotulo,
-                    n_pixels=0,
-                    L=j,
-                    T=i,
-                    R=j,
-                    B=i
-                )
+def filtro_ingenuo(img, altura_janela, largura_janela):
+    altura, largura, n_canais = img.shape
 
-                componente_encontrado = inunda(
-                    img, altura, largura, i, j, componente)
-                
-                if componente_encontrado['n_pixels'] >= n_pixels_min and verifica_altura_largura(componente,altura_min,largura_min):
-                    componentes.append(componente_encontrado)
-            rotulo += 0.1
+    img_out = np.zeros(img.shape)
 
-    return componentes
+    for c in range(0, n_canais):
+        for y in range(altura_janela // 2, altura - altura_janela // 2):
+            start_y = y - altura_janela // 2
+            end_y = max(y + altura_janela // 2, 1) + 1
+            for x in range(largura_janela // 2, largura - largura_janela // 2):
+                start_x = x - largura_janela // 2
+                end_x = max(x + largura_janela // 2, 1) + 1
 
-def verifica_altura_largura(componentes, altura_min, largura_min):
-    altura = 0
-    largura = 0
+                img_out[y][x][c] = calcula_media(img[start_y:end_y, start_x:end_x, c])
 
-    altura = componentes['T'] - componentes['B'] if componentes['T'] > componentes['B'] else componentes['B'] - componentes['T']
-    largura = componentes['L'] - componentes['R'] if componentes['L'] > componentes['R'] else componentes['R'] - componentes['L']
+    return img_out              
 
-    return altura >= altura_min and largura >= largura_min 
+def filtro_separavel(img,altura_janela,largura_janela):
+    return filtro_ingenuo(filtro_ingenuo(img, altura_janela, 1), 1, largura_janela)
 
+def integral(img, h, w):
 
-def inunda(img, largura, altura, y, x, componente):
+    ih, iw, _ = img.shape
+  
+    buffer = img.copy()
+    saida = img.copy()
 
-    if img[y][x][0] != ARROZ:
-        return componente
+    limH = h//2
+    limW = w//2
 
-    img[y][x][0] = componente['label']
-    componente['n_pixels'] += 1
+    for y in range (0, ih):
+        for x in range (0, iw):
+            if(y != 0):
+                buffer[y][x] += buffer[y-1][x]
+            if(x != 0):
+                buffer[y][x] += buffer[y][x-1]
+            if(y != 0 and x != 0):
+                buffer[y][x] -= buffer[y-1][x-1]
+    
+    
+    for y in range (0, ih):
+        for x in range (0, iw):
+            divy = h
+            divx = w
+            ley = y-limH
+            ldy = y+limH
+            lex = x-limW
+            ldx = x+limW
 
-# verificar os cantos do componente
-    if x < componente['L']:
-        componente['L'] = x
+            if(ley < 0):
+                divy += ley
+                ley = 0
+            if(lex < 0):
+                divx += lex
+                lex = 0
+            if(ldy > ih-1):
+                divy -= ldy - ih + 1
+                ldy = ih-1
+            if(ldx > iw-1):
+                divx -= ldx - iw + 1
+                ldx = iw-1
 
-    if y > componente['T']:
-        componente['T'] = y
+            saida[y][x] = buffer[ldy][ldx]
+            if(ley != 0):
+                saida[y][x] -= buffer[ley-1][ldx]
+            if(lex != 0):
+                saida[y][x] -= buffer[ldy][lex-1]
+            if(lex != 0 and ley != 0):
+                saida[y][x] += buffer[ley-1][lex-1]
+            saida[y][x] = saida[y][x] / (divx * divy)
 
-    if x > componente['R']:
-        componente['R'] = x
+    return saida
+def separavel(img, h, w):
 
-    if y < componente['B']:
-        componente['B'] = y
+    ih, iw, _ = img.shape
+  
+    buffer = img.copy()
+    saida = img.copy()
 
-# Chama a recursão nos vizinhos
+    limH = h//2
+    limW = w//2
 
-    # Esquerda
-    if x > 0:
-        componente = inunda(img, altura, largura, y, x - 1, componente)
+    for y in range (limH, ih - limH):
+        for x in range (limW, iw - limW):
+            cont = 0
+            for a in range(-limW, limW+1):
+                cont += img[y][x+a]
+            buffer[y][x] = cont / 3
 
-    # Cima
-    if y > 0:
-        componente = inunda(img, altura, largura, y - 1, x, componente)
-
-    # Direita
-    if x < largura - 1:
-        componente = inunda(img, altura, largura, y, x + 1, componente)
-
-    # Baixo
-    if y < altura - 1:
-        componente = inunda(img, altura, largura, y + 1, x, componente)
-
-    return componente
-
-
+    for y in range (limH, ih - limH):
+        for x in range (limW, iw - limW):
+            cont = 0
+            for a in range(-limH, limH+1):
+                cont += buffer[y+a][x]
+            saida[y][x] = cont / 3
+    
+    return saida
 def main():
-
-    # Abre a imagem em escala de cinza.
-    img = cv2.imread(INPUT_IMAGE, cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread("Exemplos/{} - Original.bmp".format(IMAGEM_ENTRADA))
     if img is None:
-        print('Erro abrindo a imagem.\n')
+        print('Erro ao abrir a imagem.\n')
         sys.exit()
 
-    # É uma boa prática manter o shape com 3 valores, independente da imagem ser
-    # colorida ou não. Também já convertemos para float32.
-    img = img.reshape((img.shape[0], img.shape[1], 1))
     img = img.astype(np.float32) / 255
-
-    # Mantém uma cópia colorida para desenhar a saída.
-    img_out = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-
-    # Segmenta a imagem.
-    if NEGATIVO:
-        img = 1 - img
-    img = binariza(img, THRESHOLD)
-    cv2.imshow('01 - binarizada', img)
-    cv2.imwrite('01 - binarizada.png', img*255)
-
+    cv2.imshow('01 - Original', img)
+    cv2.imwrite('01 - Original.bmp', img * 255)
     start_time = timeit.default_timer()
-    componentes = rotula(img, LARGURA_MIN, ALTURA_MIN, N_PIXELS_MIN)
-    n_componentes = len(componentes)
+    img = filtro_ingenuo(img, ALTURA_JANELA, LARGURA_JANELA)
     print('Tempo: %f' % (timeit.default_timer() - start_time))
-    print('%d componentes detectados.' % n_componentes)
 
-    # Mostra os objetos encontrados.
-    for c in componentes:
-        cv2.rectangle(img_out, (c['L'], c['T']), (c['R'], c['B']), (0, 0, 1))
+    cv2.imshow('02 - out', img)
+    cv2.imwrite('02 - out.png', img * 255)
+    
 
-    cv2.imshow('02 - out', img_out)
-    cv2.imwrite('02 - out.png', img_out*255)
     cv2.waitKey()
     cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
     main()
-
-# ===============================================================================

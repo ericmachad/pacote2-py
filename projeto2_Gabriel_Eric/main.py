@@ -3,42 +3,66 @@ import timeit
 import numpy as np
 import cv2
 
-ALTURA_JANELA = 3
-LARGURA_JANELA = 3
+ALTURA_JANELA = 51
+LARGURA_JANELA = 21
 IMAGEM_ENTRADA = 'b'
 
 def imagem_integral(img):
-    altura, largura, _ = img.shape
+    altura, largura, n_canais = img.shape
     
-    integral = img.copy()
+    integral = np.zeros(img.shape)
 
-    for y in range(0, altura):
-        for x in range(1, largura):
-            integral[y][x] += integral[y][x - 1]
+    for canal in range(0, n_canais):
+        for y in range(0, altura):
+            integral[y][0][canal] = img[y][0][canal]
+            for x in range(1, largura):
+                integral[y][x][canal] = img[y][x][canal] + integral[y][x - 1][canal]
 
-    for y in range(1, altura):
-        for x in range(0, largura):
-            integral[y][x] += integral[y - 1][x]
+        for y in range(1, altura):
+            for x in range(0, largura):
+                integral[y][x][canal] = integral[y][x][canal] + integral[y - 1][x][canal]
 
     return integral
 
 
 def filtro_img_integral(img, altura_janela, largura_janela):
-    altura, largura, _ = img.shape
-
-    img_out = img.copy()
+    altura, largura, n_canais = img.shape
+    img_out = np.zeros(img.shape)
     integral = imagem_integral(img)
+    for canal in range(0, n_canais):
+        for y in range(0,altura):
+            for x in range(0,largura):
+                divisor_altura=altura_janela
+                divisor_largura=largura_janela
+                topo_esquerda = y - altura_janela // 2
+                topo_direita = y + altura_janela // 2
+                baixo_esquerda = x - largura_janela // 2
+                baixo_direita = x + largura_janela // 2
+                if(topo_esquerda < 0):
+                    divisor_altura += topo_esquerda
+                    topo_esquerda = 0
+                if(baixo_esquerda < 0):
+                    divisor_largura += baixo_esquerda
+                    baixo_esquerda = 0
+                if(topo_direita > altura-1):
+                    divisor_altura -= topo_direita - altura + 1
+                    topo_direita = altura-1
+                if(baixo_direita > largura-1):
+                    divisor_largura -= baixo_direita - largura + 1
+                    baixo_direita = largura-1
 
-    for y in range(altura_janela // 2 , altura - altura_janela // 2):
-        for x in range(largura_janela // 2, largura - largura_janela // 2):
-            topo_esquerda = integral[y - altura_janela // 2 - 1][x - largura_janela // 2 - 1]
-            topo_direita = integral[y - altura_janela // 2 - 1][x + largura_janela // 2]
-            baixo_esquerda = integral[y + altura_janela // 2][x - largura_janela // 2 - 1]
-            baixo_direita = integral[y + altura_janela // 2][x + largura_janela // 2]
-                                
-            img_out[y][x] = (baixo_direita - topo_direita - baixo_esquerda + topo_esquerda) / (altura_janela * largura_janela)
-     
-    return img_out
+                img_out[y][x][canal] = integral[topo_direita][baixo_direita][canal]
+                if(topo_esquerda != 0):
+                    img_out[y][x][canal] -= integral[topo_esquerda-1][baixo_direita][canal]
+                if(baixo_esquerda != 0):
+                    img_out[y][x][canal] -= integral[topo_direita][baixo_esquerda-1][canal]
+                if(baixo_esquerda != 0 and topo_esquerda != 0):
+                    img_out[y][x][canal] += integral[topo_esquerda-1][baixo_esquerda-1][canal]
+                img_out[y][x][canal] = img_out[y][x][canal] / (divisor_largura * divisor_altura)
+                
+
+    return img_out   
+
 
 def calcula_media(janela):
     altura, largura = janela.shape
@@ -70,83 +94,6 @@ def filtro_ingenuo(img, altura_janela, largura_janela):
 def filtro_separavel(img,altura_janela,largura_janela):
     return filtro_ingenuo(filtro_ingenuo(img, altura_janela, 1), 1, largura_janela)
 
-def integral(img, h, w):
-
-    ih, iw, _ = img.shape
-  
-    buffer = img.copy()
-    saida = img.copy()
-
-    limH = h//2
-    limW = w//2
-
-    for y in range (0, ih):
-        for x in range (0, iw):
-            if(y != 0):
-                buffer[y][x] += buffer[y-1][x]
-            if(x != 0):
-                buffer[y][x] += buffer[y][x-1]
-            if(y != 0 and x != 0):
-                buffer[y][x] -= buffer[y-1][x-1]
-    
-    
-    for y in range (0, ih):
-        for x in range (0, iw):
-            divy = h
-            divx = w
-            ley = y-limH
-            ldy = y+limH
-            lex = x-limW
-            ldx = x+limW
-
-            if(ley < 0):
-                divy += ley
-                ley = 0
-            if(lex < 0):
-                divx += lex
-                lex = 0
-            if(ldy > ih-1):
-                divy -= ldy - ih + 1
-                ldy = ih-1
-            if(ldx > iw-1):
-                divx -= ldx - iw + 1
-                ldx = iw-1
-
-            saida[y][x] = buffer[ldy][ldx]
-            if(ley != 0):
-                saida[y][x] -= buffer[ley-1][ldx]
-            if(lex != 0):
-                saida[y][x] -= buffer[ldy][lex-1]
-            if(lex != 0 and ley != 0):
-                saida[y][x] += buffer[ley-1][lex-1]
-            saida[y][x] = saida[y][x] / (divx * divy)
-
-    return saida
-def separavel(img, h, w):
-
-    ih, iw, _ = img.shape
-  
-    buffer = img.copy()
-    saida = img.copy()
-
-    limH = h//2
-    limW = w//2
-
-    for y in range (limH, ih - limH):
-        for x in range (limW, iw - limW):
-            cont = 0
-            for a in range(-limW, limW+1):
-                cont += img[y][x+a]
-            buffer[y][x] = cont / 3
-
-    for y in range (limH, ih - limH):
-        for x in range (limW, iw - limW):
-            cont = 0
-            for a in range(-limH, limH+1):
-                cont += buffer[y+a][x]
-            saida[y][x] = cont / 3
-    
-    return saida
 def main():
     img = cv2.imread("Exemplos/{} - Original.bmp".format(IMAGEM_ENTRADA))
     if img is None:
@@ -157,7 +104,7 @@ def main():
     cv2.imshow('01 - Original', img)
     cv2.imwrite('01 - Original.bmp', img * 255)
     start_time = timeit.default_timer()
-    img = filtro_ingenuo(img, ALTURA_JANELA, LARGURA_JANELA)
+    img = filtro_img_integral(img, ALTURA_JANELA, LARGURA_JANELA)
     print('Tempo: %f' % (timeit.default_timer() - start_time))
 
     cv2.imshow('02 - out', img)
