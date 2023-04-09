@@ -56,8 +56,10 @@ def main():
         sys.exit()
     # Convertendo para float32.
     img = img.astype(np.float32) / 255
-
-    mask = img.copy()
+    # Criando uma máscara em escala de cinza e convertendo para 3 canais, para poder operar.
+    mask = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    mask = mask.reshape(mask.shape[0], mask.shape[1], 1)
+    
     cv2.imshow('01 - Original', img)
 
     img_limiar = np.where(mask > THRESHOLD, img, 0)
