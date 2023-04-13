@@ -15,18 +15,18 @@ import cv2
 
 THRESHOLD = .55
 INITIAL_SIGMA = 10
-KERNEL_SIZE = 15
+INITIAL_KERNEL = 3
 
 GAUSSIAN_ITERATIONS = 3
-MEAN_ITERATIONS = 5
+MEAN_ITERATIONS = 40
 
-# INPUT_IMG = 'GT2.bmp'
-INPUT_IMG = 'Wind Waker GC.bmp'
+INPUT_IMG = 'GT2.bmp'
+#INPUT_IMG = 'Wind Waker GC.bmp'
 
 IMG_MULT = 0.9
 BLOOM_MULT = .15
 
-def gaussian_bloom(img):
+def bloom_gaussiano(img):
     bloom = np.zeros(img.shape)
 
     sigma = INITIAL_SIGMA
@@ -39,13 +39,13 @@ def gaussian_bloom(img):
 
 def mean_bloom(img):
     bloom = np.zeros(img.shape)
-
+    kernel = INITIAL_KERNEL
     for _i in range(0, GAUSSIAN_ITERATIONS):
-        mean_bloom = cv2.blur(img, (KERNEL_SIZE, KERNEL_SIZE))
+        mean_bloom = cv2.blur(img, (kernel, kernel))
         for _j in range(0, MEAN_ITERATIONS - 1):
-            mean_bloom = cv2.blur(mean_bloom, (KERNEL_SIZE, KERNEL_SIZE))
-
+            mean_bloom = cv2.blur(mean_bloom, (kernel, kernel))
         bloom += mean_bloom
+        kernel+=3
 
     return bloom
 
@@ -66,10 +66,10 @@ def main():
 
     cv2.imshow('02 - limiar', img_limiar)
 
-    bloom = gaussian_bloom(img_limiar)
+    bloom = bloom_gaussiano(img_limiar)
 
-    cv2.imshow('03 - Bloom', bloom)
-    cv2.imwrite('03 - Bloom.bmp', bloom * 255)
+    cv2.imshow('03 - Bloom Filtro Gaussiano', bloom)
+    cv2.imwrite('03 - Bloom Filtro Gaussiano.bmp', bloom * 255)
 
     bloom_media = mean_bloom(img_limiar)
 
