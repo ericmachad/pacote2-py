@@ -14,11 +14,11 @@ import cv2
 #===============================================================================
 
 THRESHOLD = .55
-INITIAL_SIGMA = 10
-INITIAL_KERNEL = 3
+VALINI_SIGMA = 10
+VALINI_KERNEL = 3
 
-GAUSSIAN_ITERATIONS = 3
-MEAN_ITERATIONS = 40
+REPETIÇÕES_FILTRO_GAUSSIANO = 3
+REPETIÇÕES_FILTRO_MEDIA = 40
 
 INPUT_IMG = 'GT2.bmp'
 #INPUT_IMG = 'Wind Waker GC.bmp'
@@ -29,22 +29,22 @@ BLOOM_MULT = .15
 def bloom_gaussiano(img):
     bloom = np.zeros(img.shape)
 
-    sigma = INITIAL_SIGMA
+    sigma = VALINI_SIGMA
 
-    for _i in range(0, GAUSSIAN_ITERATIONS):
+    for _i in range(0, REPETIÇÕES_FILTRO_GAUSSIANO):
         bloom += cv2.GaussianBlur(img, (0, 0), sigma)
         sigma *= 2
 
     return bloom
 
-def mean_bloom(img):
+def bloom_media(img):
     bloom = np.zeros(img.shape)
-    kernel = INITIAL_KERNEL
-    for _i in range(0, GAUSSIAN_ITERATIONS):
-        mean_bloom = cv2.blur(img, (kernel, kernel))
-        for _j in range(0, MEAN_ITERATIONS - 1):
-            mean_bloom = cv2.blur(mean_bloom, (kernel, kernel))
-        bloom += mean_bloom
+    kernel = VALINI_KERNEL
+    for _i in range(0, REPETIÇÕES_FILTRO_GAUSSIANO):
+        bloom_media = cv2.blur(img, (kernel, kernel))
+        for _j in range(0, REPETIÇÕES_FILTRO_MEDIA - 1):
+            bloom_media = cv2.blur(bloom_media, (kernel, kernel))
+        bloom += bloom_media
         kernel+=3
 
     return bloom
@@ -57,12 +57,12 @@ def main():
     # Convertendo para float32.
     img = img.astype(np.float32) / 255
     # Criando uma máscara em escala de cinza e convertendo para 3 canais, para poder operar.
-    mask = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    mask = mask.reshape(mask.shape[0], mask.shape[1], 1)
+    MASK_CINZA = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    MASK_CINZA = MASK_CINZA.reshape(MASK_CINZA.shape[0], MASK_CINZA.shape[1], 1)
     
     cv2.imshow('01 - Original', img)
 
-    img_limiar = np.where(mask > THRESHOLD, img, 0)
+    img_limiar = np.where(MASK_CINZA > THRESHOLD, img, 0)
 
     cv2.imshow('02 - limiar', img_limiar)
 
@@ -71,7 +71,7 @@ def main():
     cv2.imshow('03 - Bloom Filtro Gaussiano', bloom)
     cv2.imwrite('03 - Bloom Filtro Gaussiano.bmp', bloom * 255)
 
-    bloom_media = mean_bloom(img_limiar)
+    bloom_media = bloom_media(img_limiar)
 
     cv2.imshow('04 - Bloom Media', bloom_media)
     cv2.imwrite('04 - Bloom Media.bmp', bloom_media * 255)
